@@ -34,13 +34,14 @@ class StaticSolver:
          
     def Inverse(self, load = 'all', N = 1):  
         # load: right hand side vector of the static problem
-        # N: number of repreated evaluations for time measurement
+        # N: number of repeated evaluations for time measurement
         if load == 'all':
             Load = np.eye(np.size(self.K,1))   
 
         else:
             Load = load
             
+        K = self.K
         
         # Compute the full inverse of the stiffness matrix using LAS (scipy.sparse.linalg).
         # The function your need is called inv().
@@ -48,9 +49,10 @@ class StaticSolver:
         # for a reliable time-measurement
         start = time.time()
         #++++++++++++ Something is missing here +++++++++++++++
-        end = time.time()
-           
+        for i in range(N):
+            K_inv = LAS.inv(K)
         # Calculation of inverse is the 'offline' time
+        end = time.time()
         tOffline = (end-start)/N    
         
 
@@ -58,15 +60,16 @@ class StaticSolver:
         # load vector.
         # Use a for loop to perform the multiplication multiple times 
         # for a reliable time-measurement
-        
+        start = time.time()
         #++++++++++++ Something is missing here +++++++++++++++
-
-        
-        
+        for i in range(N):
+            StaticResponse = K_inv @ Load;
         # The evaluation of the matrix multiplication is the 'online' time
+        end = time.time()
         tOnline = (end-start)/N    
     
         # Return the static response, the offline and online time
+        
         return StaticResponse, tOffline, tOnline
     
 
@@ -80,27 +83,30 @@ class StaticSolver:
 
         else:
             Load = load
-
+        K = self.K
         # Compute the factorization of the stiffness matrix using LAS (scipy.sparse.linalg)
         # The function your need is called splu(). This function returns and object.
         # Use a for loop to compute the inverse multiple times 
         # for a reliable time-measurement
        
-        
+        start = time.time()
         #++++++++++++ Something is missing here +++++++++++++++
-
+        for i in range(N):
+            K_splu = LAS.splu(K)
         # Calculation of inverse is the 'offline' time
+        end = time.time()
         tOffline = (end-start)/N    
 
         # Compute the static response by solving the factorized problem.
         # Use the solve() command of the SPLU object.
         # Use a for loop to perform the solution multiple times 
         # for a reliable time-measurement
-       
+        start = time.time()
         #++++++++++++ Something is missing here +++++++++++++++
-
-   
+        for i in range(N):
+            StaticResponse = K_splu.solve(Load)
      # The evaluation of the matrix factorization is the 'online' time
+        end = time.time()
         tOnline = (end-start)/N    
     
         # Return the static response, the offline and online time
