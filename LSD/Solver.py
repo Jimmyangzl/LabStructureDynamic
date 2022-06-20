@@ -92,7 +92,7 @@ class StaticSolver:
         start = time.time()
         #++++++++++++ Something is missing here +++++++++++++++
         for i in range(N):
-            K_splu = LAS.splu(K)
+            K_splu = LAS.splu(K) # returns an object, which has a solve method.
         # Calculation of inverse is the 'offline' time
         end = time.time()
         tOffline = (end-start)/N    
@@ -313,41 +313,52 @@ class Eigensolver:
         
         eVec = np.zeros([np.size(self.K,1),n])
         eVal = np.zeros([n])
-        
         #++++++++++++ Something is missing here +++++++++++++++
-        
+        K = self.K
+        M = self.M
+        sys_dim = M.shape[0] # dimension of the system
+        K_shift = K - (shift**2) * M
+        K_lu_shift = LAS.splu(K_shift)
 
         # For loop: iteration over all to-be-calculated eigenmodes
         # from 0 to n-1
+        P = np.eye(sys_dim)
         for it in range(0,n):
             
-            # Initialize variables which are required in the wjile loop
+            # Initialize variables which are required in the while loop
             count = 0
-            eval_      = 100
+            eval_     = 100
             eval_prev = 10
             
             # There are several possibilities to initialize the current eigenvector
-            z = 'WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
+            #++++++++++++ Something is missing here +++++++++++++++
+            z = np.reshape(np.ones(sys_dim),(sys_dim,1)) # reshape z to size [sys_dim,1]
             
-            # The are several termination criteria, one possibility is to use 
-            # the realive change in the calculated eigenfrequency.
+            # There are several termination criteria, one possibility is to use 
+            # the relative change in the calculated eigenfrequency.
             
-            while 'WildcardValue': #++++++++++++ Something is missing here +++++++++++++++
+            while np.abs(eval_ - eval_prev) > epsilon: #++++++++++++ Something is missing here +++++++++++++++
                 
                 # Calculate the updated eigenvector
-                z = K_lu_shift.solve(#++++++++++++ Something is missing here +++++++++++++++
-                                     )
+                #++++++++++++ Something is missing here +++++++++++++++
+                z = K_lu_shift.solve(M @ z)
                 
                 # Deflation
-                # If the are already calculated eigenvectors, deflate them.
+                # If there are already calculated eigenvectors, deflate them.
                 # This can be implemented in one line of code.
                 # Alternatively, a for loop iteration over all
                 # previously calculated eigenvectors is requried.
+                
                 if it > 0:
-                    'WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
+                    #++++++++++++ Something is missing here +++++++++++++++
+                    z_i = np.reshape(eVec[:,it-1],(sys_dim,1))
+                    P = P @ (np.eye(sys_dim) - z_i @ z_i.T @ M)
+                    z = P @ z
+
 
                 # Mass normalize the current eigenvector
-                z ='WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
+                #++++++++++++ Something is missing here +++++++++++++++
+                z = z / np.sqrt(z.T @ M @ z)
                     
                 # Set the previous and current values for termination-checking
                 eval_prev = eval_
@@ -355,7 +366,9 @@ class Eigensolver:
                 # The currently estimated eigenvalues can be calculated as 
                 # ration of mass and stiffness matrix, each projected on the 
                 # current eigenvector
-                eval_ = 'WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
+                #++++++++++++ Something is missing here +++++++++++++++
+                eval_ = z.T @ K_shift @ z
+                z = np.reshape(z,(sys_dim,))
                 
                 # Increase counter, terminate when limit is reached.
                 count = count+1
@@ -363,7 +376,7 @@ class Eigensolver:
                     break 
              
             # Store frequency and vector     
-            eVal[it] = eval_
+            eVal[it] = eval_ 
             eVec[:,it] = z
             
            
@@ -387,74 +400,118 @@ class Eigensolver:
 
         # Initialize the shifted stiffness matrix and 
         # the total number of buffer vectors
-        K_shifted = self.K-(shift**2)*self.M
-        n_total = 'WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
-    
+        K = self.K
+        M = self.M
+        K_shifted = K - (shift**2) * M
+        n_total = M.shape[0]
         # Factorize the stiffness matrix
         K_lu_shift = LAS.splu(K_shifted)
+        # counter
+        p = 0
 
-    	# Define initial guesses for eigenvectors and values
-        # Get unitary shapes. Maximize the angles. 
-    
-        # Initialize the to-be-calculated eigenmodes
-        X = np.eye(np.size(K_shifted,1),n_total)
+        # Define initial guesses for eigenvectors and values
+        # Get unitary shapes. Maximize the angles. ??
         
+        z = np.reshape(np.ones(n_total),(n_total,1))
+        m = M @ z
+        gamma = np.sqrt(z.T @ m)
+        z = z / gamma
+        m = m / gamma
+        z_prev = z
+ 
+        Z = z
+        M_z = m
+        
+        
+        # Initialize the to-be-calculated eigenmodes
+        X = np.zeros((n_total,n))
+        T = np.eye(1)
         # Remember: alternative initilization are available
 
 
         # Initialize iteration variables
-        omegaSqPrev = np.zeros([n_total]);
+        omegaSqPrev = np.zeros([n]);
         convergence = 0
-        counter = 0 
+#         counter = 0 
         
-        while (convergence == 0) and (counter<nit):
+        
+        while (convergence == 0) and (p<nit):
             
             # Update the basis of the eigenvectors. Use the factirized, shifted
             # stiffness matrix.
             
-            X = 'WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
-            
+#             X = K_lu_shift.solve(M @ z) #++++++++++++ Something is missing here +++++++++++++++
 
-        
+            if p > 0:
+                T = np.insert(T, T.shape[0], values = 0, axis = 0)
+                T = np.insert(T, T.shape[1], values = 0, axis = 1)
+                T[p-1, p] = gamma
+                T[p, p-1] = gamma
+            z_prev = z
+            z = K_lu_shift.solve(m)
+
             # Project mass and stiffness matrix on the current subspace
             # which results in reduced stiffness and mass matrix
-            
             #++++++++++++ Something is missing here +++++++++++++++
-
+            for i in range(0,p+1):
+                a = np.reshape(M_z[:,i],(1,n_total)) @ z
+                z = z - a * np.reshape(Z[:,i],(n_total,1))
+                if i == p:
+                    T[p, p] = a
+            m = M @ z
+            gamma = np.sqrt(z.T @ m)
+            z = z / gamma
+            m = m / gamma
+            Z = np.column_stack((Z,z))  
+            M_z = np.column_stack((M_z,m))
+            
             # Solve the reduced eigenproblem. Note: this is not a sparse problem.
             # Use the standard linalg module from ths scipy package.
-            [omegaSq,Xred] = 'WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
+            if p+1 >= n:
+                [omegaSq,Y] = LA.eig(T) #++++++++++++ Something is missing here +++++++++++++++
+                omegaSq = np.abs(np.real(omegaSq[0:n]))  
+                omegaSq = 1.0 / omegaSq   
+                Y = Y[:, 0:n]
+                
             
             # Keep the eigenfrequencies and -vectors real.
-            omegaSq = np.real(omegaSq)          
+#                 omegaSq = np.real(omegaSq[n-1])          
             # Project the reduced eigenvector out of the subspace
-            X = np.real(#++++++++++++ Something is missing here +++++++++++++++
-                       )    
+            # ++++++++++++ Something is missing here +++++++++++++++
+#             X = np.real(Z@Xred)    
             
             # Scaling is required. For example, scale the eigenvectors to one.
-            X = X/np.sqrt(np.diag(X.T @ self.M @ X))
+#             X = X/np.sqrt(np.diag(X.T @ self.M @ X))
             # Convergence and termination criteria
             
             # Calculate the difference of all TARGETED eigenfreqeuncies
-            domega = 'WildcardValue'  #++++++++++++ Something is missing here +++++++++++++++
+            #++++++++++++ Something is missing here +++++++++++++++
+                domega = np.absolute(np.sqrt(omegaSq) - np.sqrt(omegaSqPrev)) 
             
             # Increase counter and check convergence
-            counter = counter +1  
-            if np.all(domega < epsilon):
-                convergence = 1
              
+                if np.all(domega < epsilon):
+                    convergence = 1
             # Update the eigenfrequencies 
-            omegaSqPrev = omegaSq
+                omegaSqPrev = omegaSq
+            p = p + 1
          
         # Sort and shift back, avoid problems with square root
+        X = Z[:,0:-1]@Y
+        omegaSq = np.reshape(omegaSq,(n,))
+#         for i in range(0,X.shape[1]):    
+#             X[:, i] = X[:, i] / np.linalg.norm(X[:,i])
+#         for i in range(0,X.shape[1]):    
+#             X[:, i] = X[:, i] / np.amax(X[:,i])
         X = X[:,np.argsort(omegaSq)]    
         omegaSq.sort()
 
         omega2 = np.real(omegaSq[:n])
         omega2 = omega2+(shift**2)
-        omega_nan = np.isnan(np.sqrt(omega2))
+#         omega_nan = np.isnan(np.sqrt(omega2))
         omega = np.sqrt(omega2)
-        omega[omega_nan] = omega2[omega_nan]
+#         omega[omega_nan] = omega2[omega_nan]
+    
 
 
         return omega, np.real(X)
