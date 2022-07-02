@@ -269,7 +269,7 @@ class Eigensolver:
         self.M = M
      
     def MaxOmega(self):
-        # Calcuate the maximum  requency of the system
+        # Calcuate the maximum  frequency of the system
         
         #++++++++++++ Something is missing here +++++++++++++++
         
@@ -395,7 +395,7 @@ class Eigensolver:
           
         
         
-    def KrylovSubspace(self,n=1,shift=0.0,epsilon= 1e-4, nit = 100):        
+    def KrylovSubspace(self,n=1,shift=0.0,epsilon= 1e-4, nit = 1000):        
         # Solve the structural eigenproblem by using the krylov subspace method
 
         # Initialize the shifted stiffness matrix and 
@@ -524,13 +524,28 @@ class HarmonicSolver:
         self.M = M;
            
     def DirectHarmonics(self,omegas = np.linspace(0,10,1000)):
+        # Direct method: 
+        # z = (K - omega^2 * M)^(-1) @ s
+        # where s is the load, z is the output(amplitude)
+        # For a certain omega, s can be seen as an identity matrix because each input is a unit input
+        # in the from of [0,0,...,1,...0]^T, the ith element of the ith s is 1 and the other
+        # elements will be 0, all these loads build up an identity matrix.
+        # The out put will be (K - omega^2 * M)^(-1)
+        
         # Initialize the harmonic response as 3D empty numpy array.
-        #++++++++++++ Something is missing here +++++++++++++++        
-       
+        #++++++++++++ Something is missing here +++++++++++++++    
+        K = self.K
+        M = self.M
+        sys_dim = M.shape[0]
+        # The 1st dimension is the input dof while the 2nd the output dof
+        # input dof: the node on which the load(amplitude 1) is applied
+        # output: contain all the nodes
+        HarmonicResponse = np.zeros((sys_dim, sys_dim, omegas.shape[0]))
         for it,omega in enumerate(omegas): 
             # Calculate the entire inverse for the current frequency.
             # The scipy sparse linalg module can be used.
-            currHarmonicResponse = 'WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
+            #++++++++++++ Something is missing here +++++++++++++++
+            currHarmonicResponse = LAS.inv(K - (omega**2) * M) 
             
             # Note that a dense and sparse array are different. The todense()
             # function must be applied to assign the harmonic response.
@@ -540,41 +555,61 @@ class HarmonicSolver:
         return HarmonicResponse, omegas
     
     def ModalSuperposition(self,omegas = np.linspace(0,10,1000),n = 10):
-
+        
+        K = self.K
+        M = self.M
+        sys_dim = M.shape[0]
         # Modal superposition requries eigenmodes and frequencies 
         # Use an eigensolver of your choise 
-        omega_eig, modes = 'WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
+        #++++++++++++ Something is missing here +++++++++++++++
+        omega_eig, modes = Eigensolver.ScipySparse(self,n=n)
         omega2 = omega_eig**2
+        # square the input frequencies
+        omegas2 = omegas**2
         # Initialize the harmonic response as 3D empty numpy array.
         HarmonicResponse = np.empty([np.size(self.K,0),np.size(self.K,1),np.size(omegas)])
        
         for it,omega in enumerate(omegas): 
             # Calculate the harmonic response for all modes for the current
             # frequency.
-            currHarmonicResponse = 'WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
+            #++++++++++++ Something is missing here +++++++++++++++
+            # loop for superposition, use the first n modes
+            currHarmonicResponse = np.empty([np.size(self.K,0),np.size(self.K,1)])
+            for i in range(0,n):
+                mode = np.real(np.reshape(modes[:,i],(sys_dim,1)))
+                m = mode.T @ M @ mode
+                currHarmonicResponse += mode @ mode.T / (m * (omega2[i] - omegas2[it]))
             HarmonicResponse[:,:,it]=currHarmonicResponse
-
-
         return HarmonicResponse, omegas
         
 
     def ModeAcceleration(self,omegas = np.linspace(0,10,1000),n = 10):
         # Modal superposition requries eigenmodes and frequencies 
-        # Use an eigensolver of your choise        
-        omega_eig, modes = 'WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
+        # Use an eigensolver of your choise       
+        # ++++++++++++ Something is missing here +++++++++++++++
+        omega_eig, modes = Eigensolver.ScipySparse(self,n=n) 
         omega2 = omega_eig**2
-
+        K = self.K
+        M = self.M
+        sys_dim = M.shape[0]
+        # square the input frequencies
+        omegas2 = omegas**2
         # Additionally, the inverse is required. In this case, a factorization has no benefits
         #++++++++++++ Something is missing here +++++++++++++++
-
-
+        K_inv = LAS.inv(K)
+        
         # Initialize the harmonic response as 3D empty numpy array.
         HarmonicResponse = np.empty([np.size(self.K,0),np.size(self.K,1),np.size(omegas)])
-
+        
         for it,omega in enumerate(omegas): 
             # Calculate the harmonic response for all modes for the current
             # frequency. Add the mode acceleration term. 
-            currHarmonicResponse = 'WildcardValue' #++++++++++++ Something is missing here +++++++++++++++
+            #++++++++++++ Something is missing here +++++++++++++++s
+            currHarmonicResponse = K_inv
+            for i in range(0,n):
+                mode = np.real(np.reshape(modes[:,i],(sys_dim,1)))
+                m = mode.T @ M @ mode
+                currHarmonicResponse += mode @ mode.T / (m * (omega2[i] - omegas2[it])) - mode @ mode.T / (m * omega2[i]) 
             HarmonicResponse[:,:,it]=currHarmonicResponse
             
         
